@@ -1,0 +1,133 @@
+---
+title: "Supervised Machine Learning using Random forest algorithm"
+subtitle: "Random forest model as a predoctive model"
+author: "Joshua Edefo"
+email: "edefojoshua2000@yahoo.com"
+date: "2024-01-22"
+output: github_document
+---
+Library
+```{r a, messagee=FALSE}
+library(randomForest)
+
+```
+
+Downloading data from the internet
+
+```{r b}
+
+url<-"https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"
+data<-read.csv(url, header = FALSE)
+```
+
+Data cleansing
+
+```{r c}
+head(data)
+
+# unfortunately no columns are labelled, so we named the column
+colnames(data)<-c("age", "sex", "cp", "trestbps", "chol", "fbs", "restecg","thalach", "exang", "oldpeak","slope","ca", "thal","hd")
+head(data)
+# this tells us the 6 rows 0f the data
+
+str(data)
+# this tells us the structure of the data
+# this tells us that some of the columns of the data are messed up  
+#e.g sex is supposed to be factor (0=female, 1=male) data, cp(chest pain) also suppose to be factor representing different levels of pain
+# ca and thal are correctly called factors but one of the levels is "?" when we need it to be NA
+# so got some cleaning to do
+# change the ? to n=NA
+data[data=="?"] <- NA
+
+# correct the sex values ans change sex to factor
+data[data$sex==0,]$sex<-"F"
+data[data$sex==1,]$sex<-"M"
+data$sex<-as.factor(data$sex)
+
+# convert  a bunch of other columns into factors since that is what they are supposed o be
+data$cp <-as.factor(data$cp)
+data$fbs <-as.factor(data$fbs)
+data$restecg <-as.factor(data$restecg)
+data$exang <-as.factor(data$exang)
+data$slope <-as.factor(data$slope)
+
+# R thought ca varaible was string whereas it is interger
+data$ca <- as.integer(data$ca) # then covert to factor
+data$ca <- as.factor(data$ca)
+
+# do likewise for thal
+data$thal <- as.integer(data$thal) # then covert to factor
+data$thal <- as.factor(data$thal)
+
+# hd 8heart disease) into a factor, using ifelse() to convert the 0s to "Healthy" and the 1s to "Unhealthy"
+data$hd <-ifelse(tes = data$hd==0, yes="Healthy", no ="Unhealthy")
+data$hd <- as.factor(data$hd)
+
+# check if you have done the corrections
+str(data)
+
+# check for no of rows of data with NA values
+nrow(data[is.na(data),]) # 6 rows of data
+nrow(data[is.na(data$ca),]) # 4 rows of data from ca variables
+nrow(data[is.na(data$thal),]) 
+nrow(data[is.na(data$ca) | is.na(data$thal),])
+# we can view the missing values
+data[is.na(data),] # general
+data[is.na(data$ca) | is.na(data$thal),]
+nrow(data)
+
+# use delete wise
+data<-na.omit(data)
+nrow(data)
+
+# we need to make sure that healthy and diseased samples comes from each gender, 
+# if only male samples have heart disease, we should probably remove all femeles from the model
+xtabs(~hd + sex, data=data)
+
+# now let's cerify that all 4 levels of chest pain (cp) were reported for by bunch of patients
+xtabs(~hd + cp, data=data)
+
+# and then we do the same thing for all of the boolean and categorical variables that we are using to predict heart disease
+xtabs(~hd + fbs, data=data)
+
+xtabs(~hd + restecg, data=data) # only 4 patients represent level 1. This could, potentially, get in the way of finding the best fitting line.
+#however, for now we will just leave it in and use it to see what happens
+xtabs(~hd + exang, data=data)
+xtabs(~hd + slope, data=data)
+xtabs(~hd + ca, data=data)
+xtabs(~hd + thal, data=data)
+
+
+```
+
+Dataset spliting
+
+```{r d}
+split<-floor(nrow(data)*0.8)
+# 80 % for train data and 20% for test data
+Index<-sample(1:nrow(data), size= split)
+train<-data[Index,]
+str(train)
+
+test<-data[-Index,]
+str(test)
+```
+
+Build Random forest model
+```{r e}
+ranforest<- randomForest(hd~., data= train, mtry=4, ntree=2001, importance= TRUE)
+ranforest
+```
+Use the model as a predictive tool and validate the model
+
+```{r f}
+result_= data.frame(test$hd, predict(ranforest, test, type="response"))
+result_
+plot(result_)
+```
+
+Session information
+
+```{r g, message = FALSE}
+sessionInfo()
+
